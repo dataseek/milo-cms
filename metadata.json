@@ -1,0 +1,5 @@
+{
+  "name": "Milo: CMS",
+  "description": "Una herramienta para convertir archivos DOCX a HTML e inyectar un componente de tarjeta con estilo específico cuando se encuentra la palabra clave 'DESTACADO'.",
+  "requestFramePermissions": []
+}
