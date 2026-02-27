@@ -208,6 +208,9 @@ const TESTIMONIAL_CSS = `
 
 export const CARD_CSS = `<style>\n${FEATURED_CSS}\n${TESTIMONIAL_CSS}\n</style>`;
 
+const escapeHtml = (str: string): string =>
+  str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
 export const generateCardHTML = (card: CardData, index: number = 0) => {
   if (card.type === 'testimonial') {
     return generateTestimonialHTML(card, index);
@@ -217,6 +220,11 @@ export const generateCardHTML = (card: CardData, index: number = 0) => {
 
 const generateFeaturedHTML = (card: CardData, index: number) => {
   const { tag, description, url, linkText, imageUrl, linkOnNewLine } = card;
+  const safeTag = escapeHtml(tag || '');
+  const safeDesc = escapeHtml(description || '');
+  const safeUrl = /^https?:\/\//i.test(url || '') ? escapeHtml(url) : '#';
+  const safeLinkText = escapeHtml(linkText || '');
+  const safeImageUrl = /^https?:\/\//i.test(imageUrl || '') ? escapeHtml(imageUrl) : '';
 
   // Inline styles
   const s = {
@@ -228,26 +236,30 @@ const generateFeaturedHTML = (card: CardData, index: number) => {
     img: 'flex-shrink: 0; width: 240px; height: 100%; object-fit: cover; display: block; border-radius: 24px; margin: 0px!important;'
   };
 
-  const linkSeparator = description && linkText 
-    ? (linkOnNewLine ? '<br>' : '&nbsp;') 
+  const linkSeparator = description && linkText
+    ? (linkOnNewLine ? '<br>' : '&nbsp;')
     : '';
 
   return `
 <div class="custom-card-1" id="card-featured-${index}" style="${s.card}">
   <div class="card-text" style="${s.textCol}">
-    <div class="card-tag" style="${s.tag}">${tag}</div>
+    <div class="card-tag" style="${s.tag}">${safeTag}</div>
      <p class="card-title p-without-download" style="${s.pTitle}">
-        ${description}${linkSeparator}
-        <a href="${url}" target="_blank" class="card-link" style="${s.link}">${linkText}</a>
-      </p>	
+        ${safeDesc}${linkSeparator}
+        <a href="${safeUrl}" target="_blank" class="card-link" style="${s.link}">${safeLinkText}</a>
+      </p>
   </div>
-  <img class="card-image" src="${imageUrl}" alt="Imagen guía" style="${s.img}">
+  <img class="card-image" src="${safeImageUrl}" alt="Imagen guía" style="${s.img}">
 </div>
 `;
 };
 
 const generateTestimonialHTML = (card: CardData, index: number) => {
   const { description, imageUrl, authorName, authorRole } = card;
+  const safeDesc = escapeHtml(description || '');
+  const safeImageUrl = /^https?:\/\//i.test(imageUrl || '') ? escapeHtml(imageUrl) : '';
+  const safeAuthorName = escapeHtml(authorName || '');
+  const safeAuthorRole = escapeHtml(authorRole || '');
 
   // Inline styles for Testimonial
   const s = {
@@ -255,7 +267,7 @@ const generateTestimonialHTML = (card: CardData, index: number) => {
     contentDiv: 'margin-bottom: 24px;',
     p: 'font-size: 24px; line-height: 1.4; color: #000414; font-weight: 400; margin: 0;',
     infoDiv: 'display: flex; align-items: center; gap: 16px; margin-top: auto;',
-    photo: `width: 60px; height: 60px; border-radius: 50%; background-size: cover; background-position: center; background-repeat: no-repeat; flex-shrink: 0; background-image: url('${imageUrl}');`,
+    photo: `width: 60px; height: 60px; border-radius: 50%; background-size: cover; background-position: center; background-repeat: no-repeat; flex-shrink: 0; background-image: url('${safeImageUrl}');`,
     textDiv: 'display: flex; flex-direction: column;',
     name: 'font-size: 16px; line-height: 1.5; font-weight: 700; color: #000414;',
     role: 'font-size: 16px; line-height: 1.5; color: #4B5563;'
@@ -265,14 +277,14 @@ const generateTestimonialHTML = (card: CardData, index: number) => {
 <div class="testimonial_slider-card text-color-primary" id="card-testimonial-${index}" style="${s.card}">
     <div class="testimonial_slider-content" style="${s.contentDiv}">
         <div class="margin-bottom margin-small">
-            <p class="heading-4" style="${s.p}">${description}</p>
+            <p class="heading-4" style="${s.p}">${safeDesc}</p>
         </div>
     </div>
     <div class="testimonial_slider-info" style="${s.infoDiv}">
-        <div style="${s.photo}" class="testimonial_slider-photo"></div> 
+        <div style="${s.photo}" class="testimonial_slider-photo"></div>
             <div class="testimonial_slider_info-text" style="${s.textDiv}">
-             <div class="text-size-regular text-weight-bold" style="${s.name}">${authorName}</div>
-            <div class="text-size-regular" style="${s.role}">${authorRole}</div> 
+             <div class="text-size-regular text-weight-bold" style="${s.name}">${safeAuthorName}</div>
+            <div class="text-size-regular" style="${s.role}">${safeAuthorRole}</div> 
         </div>
     </div>
 </div>

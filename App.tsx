@@ -17,11 +17,12 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-claude-bg text-claude-text-primary font-mono selection:bg-neutral-800 flex flex-col">
+    <div className="min-h-screen bg-claude-bg text-claude-text-primary font-mono flex flex-col">
 
       {/* Global Preview Styles for Converter */}
       <style>{`
         .preview-content { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+        .preview-content ::selection { background-color: rgba(217, 119, 87, 0.2); color: inherit; }
         .preview-content a, .preview-content a * { text-decoration: underline !important; color: #3b82f6 !important; }
         .preview-content h1 { font-size: 2rem; font-weight: 800; margin-top: 1.5em; margin-bottom: 0.75em; line-height: 1.2; color: #111; }
         .preview-content h2 { font-size: 1.5rem; font-weight: 700; margin-top: 1.5em; margin-bottom: 0.5em; color: #111; }

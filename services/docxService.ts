@@ -77,6 +77,22 @@ const cleanHtmlContent = (htmlContent: string): string => {
 
   nodesToRemove.forEach(n => n.remove());
 
+  // Remove dangerous elements and event handlers
+  body.querySelectorAll('script, embed, object, iframe').forEach(el => el.remove());
+  body.querySelectorAll('*').forEach(el => {
+    Array.from(el.attributes).forEach(attr => {
+      if (attr.name.toLowerCase().startsWith('on')) {
+        el.removeAttribute(attr.name);
+      }
+    });
+    if (el.tagName === 'A') {
+      const href = el.getAttribute('href') || '';
+      if (href.toLowerCase().replace(/\s/g, '').startsWith('javascript:')) {
+        el.removeAttribute('href');
+      }
+    }
+  });
+
   // Add target="_blank" to all links
   const links = body.querySelectorAll('a');
   links.forEach(link => {
