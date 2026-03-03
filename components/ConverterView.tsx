@@ -23,6 +23,7 @@ export const ConverterView: React.FC<ConverterViewProps> = ({ setCards, onSwitch
   const [showApiModal, setShowApiModal] = useState<boolean>(false);
   const [apiKeyInput, setApiKeyInput] = useState<string>('');
   const [savedApiKey, setSavedApiKey] = useState<string>(() => localStorage.getItem(LS_KEY) || '');
+  const [errorModal, setErrorModal] = useState<{ title: string; message: string; hint?: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSaveApiKey = () => {
@@ -148,7 +149,26 @@ export const ConverterView: React.FC<ConverterViewProps> = ({ setCards, onSwitch
 
     } catch (error: any) {
       console.error("AI Extraction error:", error);
-      alert(`Error al extraer tarjetas con IA.\n\n${error?.message || String(error)}`);
+      const msg = error?.message || String(error);
+      if (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED') || msg.toLowerCase().includes('quota')) {
+        setErrorModal({
+          title: 'Cuota de API agotada',
+          message: 'Alcanzaste el límite de solicitudes de tu API key.',
+          hint: 'Esperá unos minutos o cambiá la API key por una con cuota disponible.'
+        });
+      } else if (msg.includes('403') || msg.toLowerCase().includes('permission')) {
+        setErrorModal({
+          title: 'Sin permiso',
+          message: 'Tu API key no tiene acceso a este modelo.',
+          hint: 'Verificá que la key tenga habilitada la Gemini API en Google AI Studio.'
+        });
+      } else {
+        setErrorModal({
+          title: 'Error al generar tarjetas',
+          message: 'Ocurrió un error al contactar la IA.',
+          hint: msg
+        });
+      }
     } finally {
       setIsExtracting(false);
     }
@@ -174,6 +194,37 @@ export const ConverterView: React.FC<ConverterViewProps> = ({ setCards, onSwitch
               }
             }}
           />
+        </div>
+      )}
+
+      {/* Error Modal */}
+      {errorModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="bg-claude-surface border border-red-900/60 rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-red-900/30 border border-red-700/40 flex items-center justify-center flex-shrink-0">
+                  <span className="text-red-400 text-sm font-bold">!</span>
+                </div>
+                <span className="text-[11px] font-bold tracking-widest uppercase text-red-400">{errorModal.title}</span>
+              </div>
+              <button onClick={() => setErrorModal(null)} className="text-claude-text-dim hover:text-claude-text-primary transition-colors ml-2">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-[13px] text-claude-text-primary mb-2 leading-relaxed">{errorModal.message}</p>
+            {errorModal.hint && (
+              <p className="text-[11px] text-claude-text-dim leading-relaxed bg-claude-bg rounded-lg px-3 py-2 border border-claude-border">{errorModal.hint}</p>
+            )}
+            <div className="flex gap-2 mt-4">
+              <Button variant="primary" onClick={() => { setErrorModal(null); setShowApiModal(true); }} className="flex-1">
+                <Key className="w-3.5 h-3.5" /> Cambiar API key
+              </Button>
+              <Button variant="secondary" onClick={() => setErrorModal(null)} className="flex-1">
+                Cerrar
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
