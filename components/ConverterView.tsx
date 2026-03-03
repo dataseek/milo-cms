@@ -1,11 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { processDocxFile } from '../services/docxService';
 import { Button } from './Button';
-import { Upload, RefreshCw, FileText, Copy, Check, Sparkles, ArrowRight } from 'lucide-react';
+import { Upload, RefreshCw, FileText, Copy, Check, Sparkles, Key, X } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import { CardData } from '../types';
 import { DEFAULT_IMAGE_URL } from '../constants';
 import Editor from '@monaco-editor/react';
+
+const LS_KEY = 'milo_gemini_api_key';
 
 interface ConverterViewProps {
   setCards: React.Dispatch<React.SetStateAction<CardData[]>>;
@@ -18,7 +20,19 @@ export const ConverterView: React.FC<ConverterViewProps> = ({ setCards, onSwitch
   const [isExtracting, setIsExtracting] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'preview' | 'code'>('preview');
   const [copied, setCopied] = useState<boolean>(false);
+  const [showApiModal, setShowApiModal] = useState<boolean>(false);
+  const [apiKeyInput, setApiKeyInput] = useState<string>('');
+  const [savedApiKey, setSavedApiKey] = useState<string>(() => localStorage.getItem(LS_KEY) || '');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSaveApiKey = () => {
+    const trimmed = apiKeyInput.trim();
+    if (!trimmed) return;
+    localStorage.setItem(LS_KEY, trimmed);
+    setSavedApiKey(trimmed);
+    setApiKeyInput('');
+    setShowApiModal(false);
+  };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -66,22 +80,29 @@ export const ConverterView: React.FC<ConverterViewProps> = ({ setCards, onSwitch
 
     setIsExtracting(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const apiKey = savedApiKey || process.env.API_KEY;
+      if (!apiKey) {
+        setShowApiModal(true);
+        setIsExtracting(false);
+        return;
+      }
+      const ai = new GoogleGenAI({ apiKey });
       const prompt = `
         Analyze the following HTML content derived from a DOCX file.
         
         Your task is to identify content blocks intended to be "Cards".
         There are two types of cards:
-        
-        1. "Featured" (DESTACADO): Marked by keywords like "DESTACADO" or "Destacado".
+
+        1. "Featured": Marked by keywords like "DESTACADO", "Destacado", "FEATURED", "Featured", "HIGHLIGHT", "Highlight", or similar terms indicating a highlighted content block.
            Schema: { type: "featured", tag, description, linkText, url, imageUrl }
-           
-        2. "Testimonial" (COMENTARIO): Marked by keywords like "COMENTARIO", "TESTIMONIO", or quoted text with a person's name.
+
+        2. "Testimonial": Marked by keywords like "COMENTARIO", "TESTIMONIO", "TESTIMONIAL", "QUOTE", "REVIEW", or quoted text attributed to a person with name/role.
            Schema: { type: "testimonial", description (the quote), authorName, authorRole, imageUrl (avatar) }
-        
+
+        The document may be in Spanish, English, or any other language. Look for structural and contextual markers regardless of language.
         For each potential card found, extract the data.
 
-        Return a JSON ARRAY of objects. Each object should have a "type" field ("featured" or "testimonial") and the relevant fields.
+        Return a JSON ARRAY of objects. Each object must have a "type" field ("featured" or "testimonial") and the relevant fields.
 
         HTML CONTENT:
         ${htmlContent.substring(0, 25000)} 
@@ -125,9 +146,9 @@ export const ConverterView: React.FC<ConverterViewProps> = ({ setCards, onSwitch
         }
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI Extraction error:", error);
-      alert("Error al extraer tarjetas con IA.");
+      alert(`Error al extraer tarjetas con IA.\n\n${error?.message || String(error)}`);
     } finally {
       setIsExtracting(false);
     }
@@ -137,6 +158,61 @@ export const ConverterView: React.FC<ConverterViewProps> = ({ setCards, onSwitch
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-[calc(100vh-10rem)]">
+
+      {/* Loading bar */}
+      {isExtracting && (
+        <div className="fixed top-0 left-0 right-0 z-50 h-0.5 bg-claude-border overflow-hidden">
+          <div className="h-full bg-claude-orange animate-[loading_1.8s_ease-in-out_infinite]" style={{ width: '40%' }}
+            ref={el => {
+              if (el) {
+                el.style.animation = 'none';
+                el.style.width = '0%';
+                requestAnimationFrame(() => {
+                  el.style.transition = 'width 15s cubic-bezier(0.1, 0.4, 0.8, 1)';
+                  el.style.width = '90%';
+                });
+              }
+            }}
+          />
+        </div>
+      )}
+
+      {/* API Key Modal */}
+      {showApiModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="bg-claude-surface border border-claude-border rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Key className="w-4 h-4 text-claude-orange" />
+                <span className="text-[11px] font-bold tracking-widest uppercase text-claude-orange">API_KEY_GEMINI</span>
+              </div>
+              <button onClick={() => setShowApiModal(false)} className="text-claude-text-dim hover:text-claude-text-primary transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-[11px] text-claude-text-secondary mb-4 leading-relaxed">
+              Pega tu API key de Google AI Studio. Se guarda localmente en el navegador.
+            </p>
+            <input
+              type="password"
+              value={apiKeyInput}
+              onChange={(e) => setApiKeyInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveApiKey()}
+              placeholder="AIza..."
+              autoFocus
+              className="w-full bg-claude-bg border border-claude-border rounded-lg px-3 py-2.5 text-[12px] font-mono text-claude-text-primary placeholder-claude-text-dim focus:outline-none focus:border-claude-orange/60 mb-4"
+            />
+            <div className="flex gap-2">
+              <Button variant="primary" onClick={handleSaveApiKey} disabled={!apiKeyInput.trim()} className="flex-1">
+                Guardar
+              </Button>
+              <Button variant="secondary" onClick={() => setShowApiModal(false)} className="flex-1">
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Sidebar */}
       <div className="lg:col-span-3 flex flex-col gap-6">
         <div className="bg-claude-surface p-6 rounded-xl border border-claude-border">
@@ -174,6 +250,14 @@ export const ConverterView: React.FC<ConverterViewProps> = ({ setCards, onSwitch
           </div>
 
           <div className="flex flex-col gap-3">
+            <button
+              onClick={() => { setApiKeyInput(''); setShowApiModal(true); }}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-claude-border text-[10px] font-bold tracking-widest uppercase text-claude-text-dim hover:text-claude-orange hover:border-claude-orange/40 transition-all"
+            >
+              <Key className="w-3.5 h-3.5" />
+              <span className="flex-1 text-left">API KEY</span>
+              {savedApiKey && <span className="text-[9px] px-1.5 py-0.5 rounded bg-green-900/40 text-green-400 border border-green-700/40">ACTIVA</span>}
+            </button>
             <Button
               variant="primary"
               onClick={copyToClipboard}
